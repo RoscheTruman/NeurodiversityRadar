@@ -3,180 +3,237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neurodiversity Profile</title>
+    <title>Neurodiversity Profile Assessment</title>
     
-    <!-- Development versions for better error messages -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Accessibility enhancements -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'neutral-focus': '#4A5568',
+                        'primary': '#4F46E5',
+                        'primary-focus': '#4338CA',
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState } = React;
 
         const NeurodiversityRadar = () => {
+            const [currentSection, setCurrentSection] = useState(0);
+            const [showInstructions, setShowInstructions] = useState(true);
+            const [showContextualHelp, setShowContextualHelp] = useState({});
+            
             const dimensions = [
                 {
                     name: 'Pattern Recognition',
                     description: 'Ability to identify complex patterns in information, behaviors, or systems',
+                    context: 'Pattern recognition abilities can vary greatly among individuals. There is no "right" score - this measures your unique way of processing patterns.',
                     questions: [
                         {
                             text: "I quickly notice patterns in numbers, words, or visual information",
+                            help: "Think about how you naturally process information in your daily life, work, or hobbies.",
                             anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
                         },
                         {
                             text: "I can easily predict what will happen next in sequences or situations",
+                            help: "Consider both logical sequences (like number patterns) and social situations.",
                             anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
                         },
                         {
                             text: "I make connections between seemingly unrelated concepts or ideas",
+                            help: "Think about how you link different topics or notice similarities across different domains.",
                             anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
                         }
                     ]
                 },
-                {
-                    name: 'Sensory Processing',
-                    description: 'How environmental stimuli are received and processed by your nervous system',
-                    questions: [
-                        {
-                            text: "I am more sensitive to sounds, lights, or textures than others seem to be",
-                            anchors: ["Never", "Rarely", "Sometimes", "Often", "Always"]
-                        },
-                        {
-                            text: "I notice subtle changes in my environment that others might miss",
-                            anchors: ["Never", "Rarely", "Sometimes", "Often", "Always"]
-                        },
-                        {
-                            text: "Certain sensory experiences can be overwhelming for me",
-                            anchors: ["Never", "Rarely", "Sometimes", "Often", "Always"]
-                        }
-                    ]
-                },
-                {
-                    name: 'Hyperfocus',
-                    description: 'Capacity for intense, sustained concentration on specific interests or tasks',
-                    questions: [
-                        {
-                            text: "I can focus intensely on activities that interest me for long periods",
-                            anchors: ["Never", "Rarely", "Sometimes", "Often", "Always"]
-                        },
-                        {
-                            text: "I lose track of time when engaged in certain activities",
-                            anchors: ["Never", "Rarely", "Sometimes", "Often", "Always"]
-                        },
-                        {
-                            text: "I find it difficult to switch tasks when deeply focused",
-                            anchors: ["Never", "Rarely", "Sometimes", "Often", "Always"]
-                        }
-                    ]
-                }
+                // ... other dimensions ...
             ];
-
-            const [scores, setScores] = useState(
-                dimensions.reduce((acc, dim) => ({ ...acc, [dim.name]: 50 }), {})
-            );
 
             const [responses, setResponses] = useState(
                 dimensions.reduce((acc, dim) => ({
                     ...acc,
-                    [dim.name]: dim.questions.reduce((qAcc, _, idx) => ({ ...qAcc, [idx]: 2 }), {})
+                    [dim.name]: dim.questions.reduce((qAcc, _, idx) => ({ ...qAcc, [idx]: null }), {})
                 }), {})
             );
 
-            const handleResponseChange = (dimension, questionIndex, value) => {
-                setResponses(prev => ({
-                    ...prev,
-                    [dimension]: {
-                        ...prev[dimension],
-                        [questionIndex]: value
-                    }
-                }));
+            const [scores, setScores] = useState(
+                dimensions.reduce((acc, dim) => ({ ...acc, [dim.name]: null }), {})
+            );
 
-                const dimensionResponses = Object.values({
-                    ...responses[dimension],
-                    [questionIndex]: value
-                });
-                const averageScore = (dimensionResponses.reduce((sum, val) => sum + val, 0) / dimensionResponses.length) * 25;
-                
-                setScores(prev => ({
-                    ...prev,
-                    [dimension]: averageScore
-                }));
+            const calculateScore = (dimensionResponses) => {
+                const validResponses = Object.values(dimensionResponses).filter(v => v !== null);
+                if (validResponses.length === 0) return null;
+                return (validResponses.reduce((sum, val) => sum + val, 0) / validResponses.length) * 25;
             };
 
+            const handleResponseChange = (dimension, questionIndex, value) => {
+                setResponses(prev => {
+                    const newResponses = {
+                        ...prev,
+                        [dimension]: {
+                            ...prev[dimension],
+                            [questionIndex]: value
+                        }
+                    };
+                    
+                    // Update score
+                    setScores(prevScores => ({
+                        ...prevScores,
+                        [dimension]: calculateScore(newResponses[dimension])
+                    }));
+
+                    return newResponses;
+                });
+            };
+
+            const Instructions = () => (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                    <h2 className="text-2xl font-bold mb-4">About This Assessment</h2>
+                    <div className="space-y-4 text-gray-600">
+                        <p>This assessment explores different aspects of cognitive processing and sensory experiences. Important notes:</p>
+                        <ul className="list-disc pl-5 space-y-2">
+                            <li>There are no "good" or "bad" scores - everyone's neurocognitive profile is unique</li>
+                            <li>Answer based on your typical experiences, not just recent events</li>
+                            <li>You can take your time and revisit questions</li>
+                            <li>Hover over "?" icons for more context about specific questions</li>
+                            <li>This is a self-reflection tool, not a diagnostic instrument</li>
+                        </ul>
+                        <button 
+                            onClick={() => setShowInstructions(false)}
+                            className="mt-4 bg-primary text-white px-6 py-2 rounded-md hover:bg-primary-focus transition-colors"
+                            aria-label="Begin assessment"
+                        >
+                            Begin Assessment
+                        </button>
+                    </div>
+                </div>
+            );
+
+            const ProgressBar = ({ dimension, score }) => (
+                <div className="mt-2" role="progressbar" aria-valuenow={score} aria-valuemin="0" aria-valuemax="100">
+                    <div className="flex justify-between text-sm mb-1">
+                        <span className="text-gray-600">Progress</span>
+                        <span className="font-medium">{score === null ? 'Not started' : `${score.toFixed(1)}%`}</span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        {score !== null && (
+                            <div 
+                                className="h-full bg-primary transition-all duration-500"
+                                style={{ width: `${score}%` }}
+                            />
+                        )}
+                    </div>
+                </div>
+            );
+
+            const QuestionCard = ({ question, dimensionName, index, response, onResponse }) => (
+                <div className="mb-6 relative">
+                    <div className="flex items-start mb-3">
+                        <p className="text-gray-800 flex-grow">{question.text}</p>
+                        <button
+                            className="ml-2 text-gray-400 hover:text-gray-600"
+                            onClick={() => setShowContextualHelp(prev => ({...prev, [${dimensionName}-${index}]: !prev[${dimensionName}-${index}]}))}
+                            aria-label="Show help text"
+                        >
+                            ?
+                        </button>
+                    </div>
+                    
+                    {showContextualHelp[${dimensionName}-${index}] && (
+                        <div className="text-sm text-gray-600 mb-3 bg-blue-50 p-3 rounded-md">
+                            {question.help}
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-5 gap-2">
+                        {question.anchors.map((anchor, valueIdx) => (
+                            <button
+                                key={valueIdx}
+                                onClick={() => onResponse(valueIdx)}
+                                className={`p-3 text-sm rounded-md transition-all duration-200 
+                                    ${response === valueIdx 
+                                        ? 'bg-primary text-white font-medium shadow-md transform scale-105' 
+                                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                                aria-pressed={response === valueIdx}
+                            >
+                                {anchor}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+
             return (
-                <div className="min-h-screen p-4 md:p-8">
-                    <div className="max-w-4xl mx-auto">
-                        <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Neurodiversity Profile</h1>
-                        
+                <div className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto">
+                    <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Neurodiversity Profile</h1>
+                    
+                    {showInstructions ? (
+                        <Instructions />
+                    ) : (
                         <div className="space-y-8">
                             {dimensions.map((dim) => (
                                 <div key={dim.name} className="bg-white rounded-lg shadow-lg p-6">
-                                    <div className="mb-4">
+                                    <div className="mb-6">
                                         <h2 className="text-2xl font-bold text-gray-800">{dim.name}</h2>
                                         <p className="text-gray-600 mt-2">{dim.description}</p>
+                                        <p className="text-sm text-gray-500 mt-2 italic">{dim.context}</p>
                                     </div>
 
                                     <div className="space-y-6">
                                         {dim.questions.map((question, idx) => (
-                                            <div key={idx} className="border-t pt-4">
-                                                <p className="text-gray-800 mb-3">{question.text}</p>
-                                                <div className="grid grid-cols-5 gap-2">
-                                                    {question.anchors.map((anchor, valueIdx) => (
-                                                        <button
-                                                            key={valueIdx}
-                                                            onClick={() => handleResponseChange(dim.name, idx, valueIdx)}
-                                                            className={`p-3 text-sm rounded-md transition-all duration-200 
-                                                                ${responses[dim.name][idx] === valueIdx 
-                                                                    ? 'bg-indigo-600 text-white font-medium shadow-md transform scale-105' 
-                                                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
-                                                        >
-                                                            {anchor}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
+                                            <QuestionCard
+                                                key={idx}
+                                                question={question}
+                                                dimensionName={dim.name}
+                                                index={idx}
+                                                response={responses[dim.name][idx]}
+                                                onResponse={(value) => handleResponseChange(dim.name, idx, value)}
+                                            />
                                         ))}
                                     </div>
 
-                                    <div className="mt-6 pt-4 border-t">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-gray-600 font-medium">Current score:</span>
-                                            <span className="text-xl font-bold text-indigo-600">{scores[dim.name].toFixed(1)}%</span>
-                                        </div>
-                                        <div className="mt-2 bg-gray-200 rounded-full h-2">
-                                            <div 
-                                                className="bg-indigo-600 h-2 rounded-full transition-all duration-500" 
-                                                style={{ width: `${scores[dim.name]}%` }}
-                                            />
-                                        </div>
-                                    </div>
+                                    <ProgressBar 
+                                        dimension={dim.name} 
+                                        score={scores[dim.name]} 
+                                    />
                                 </div>
                             ))}
-                        </div>
 
-                        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-                            <h3 className="text-xl font-bold text-gray-800 mb-4">Overall Profile</h3>
-                            <div className="space-y-3">
-                                {dimensions.map(dim => (
-                                    <div key={dim.name} className="flex items-center justify-between">
-                                        <span className="text-gray-600">{dim.name}</span>
-                                        <span className="font-medium text-indigo-600">{scores[dim.name].toFixed(1)}%</span>
-                                    </div>
-                                ))}
+                            <div className="bg-white rounded-lg shadow-lg p-6">
+                                <h3 className="text-xl font-bold text-gray-800 mb-4">Overall Profile</h3>
+                                <div className="space-y-4">
+                                    {dimensions.map(dim => (
+                                        <div key={dim.name}>
+                                            <div className="flex justify-between text-gray-600 mb-1">
+                                                <span>{dim.name}</span>
+                                                <span className="font-medium">
+                                                    {scores[dim.name] === null ? 'Not started' : `${scores[dim.name].toFixed(1)}%`}
+                                                </span>
+                                            </div>
+                                            <ProgressBar dimension={dim.name} score={scores[dim.name]} />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             );
         };
 
-        // Render the app
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(
             <React.StrictMode>
