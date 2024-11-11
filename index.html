@@ -4,65 +4,217 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neurodiversity Profile Assessment</title>
-    
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.3/Recharts.js"></script>
 </head>
 <body class="bg-gray-50">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect, useCallback, useMemo } = React;
+        const { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, ResponsiveContainer } = Recharts;
 
-        const NeurodiversityRadar = () => {
+        // Utility functions for data management
+        const storage = {
+            save: (key, data) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                    return true;
+                } catch (e) {
+                    console.error('Storage save error:', e);
+                    return false;
+                }
+            },
+            load: (key) => {
+                try {
+                    const data = localStorage.getItem(key);
+                    return data ? JSON.parse(data) : null;
+                } catch (e) {
+                    console.error('Storage load error:', e);
+                    return null;
+                }
+            }
+        };
+
+        const dimensions = [
+            {
+                name: 'Pattern Recognition',
+                description: 'Ability to identify complex patterns in information, behaviors, or systems',
+                context: 'Pattern recognition abilities can vary greatly among individuals. There is no "right" score - this measures your unique way of processing patterns.',
+                questions: [
+                    {
+                        text: "I quickly notice patterns in numbers, words, or visual information",
+                        help: "Think about how you naturally process information in your daily life, work, or hobbies.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I can easily predict what will happen next in sequences or situations",
+                        help: "Consider both logical sequences (like number patterns) and social situations.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I make connections between seemingly unrelated concepts or ideas",
+                        help: "Think about how you link different topics or notice similarities across different domains.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    }
+                ]
+            },
+            {
+                name: 'Sensory Processing',
+                description: 'How environmental sensory information is processed and integrated',
+                context: 'Everyone processes sensory information differently. This dimension explores your unique sensory experience.',
+                questions: [
+                    {
+                        text: "I am particularly sensitive to certain sounds, textures, or lights",
+                        help: "Consider your reactions to everyday sensory experiences like bright lights, loud noises, or certain fabrics.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I notice subtle changes in my environment that others might miss",
+                        help: "Think about your awareness of small changes in temperature, lighting, or arrangement of objects.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I find certain sensory experiences particularly calming or stimulating",
+                        help: "Consider how different sensory experiences affect your mood or concentration.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    }
+                ]
+            },
+            {
+                name: 'Executive Function',
+                description: 'Ability to plan, organize, and execute complex tasks',
+                context: 'Executive function encompasses various cognitive processes. Everyone has different strengths and challenges.',
+                questions: [
+                    {
+                        text: "I can easily break down complex tasks into manageable steps",
+                        help: "Think about how you approach large projects or complicated tasks.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I maintain organized systems for managing my tasks and belongings",
+                        help: "Consider how you keep track of your responsibilities and possessions.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I can adapt my plans when unexpected changes occur",
+                        help: "Think about how you handle disruptions to your routines or plans.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    }
+                ]
+            },
+            {
+                name: 'Social Interaction',
+                description: 'Understanding and navigating social situations and relationships',
+                context: 'Social interaction styles vary widely. This dimension explores your natural social patterns.',
+                questions: [
+                    {
+                        text: "I can easily read others' emotions and social cues",
+                        help: "Consider how well you understand facial expressions, tone of voice, and body language.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I understand and follow unwritten social rules",
+                        help: "Think about your comfort level with social conventions and implicit expectations.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I maintain comfortable conversations in various social settings",
+                        help: "Consider how you handle different types of social interactions and conversations.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    }
+                ]
+            },
+            {
+                name: 'Cognitive Processing',
+                description: 'How information is processed, analyzed, and integrated',
+                context: 'Everyone processes information differently. This explores your cognitive style.',
+                questions: [
+                    {
+                        text: "I process information quickly and accurately",
+                        help: "Think about how you handle new information and learning situations.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I can maintain focus on tasks for extended periods",
+                        help: "Consider your ability to concentrate and maintain attention.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    },
+                    {
+                        text: "I easily remember and recall detailed information",
+                        help: "Think about your memory for facts, experiences, and learned information.",
+                        anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
+                    }
+                ]
+            }
+        ];
+const ResultsVisualization = ({ scores }) => {
+            const data = Object.entries(scores)
+                .filter(([_, score]) => score !== null)
+                .map(([name, score]) => ({
+                    dimension: name,
+                    score: score
+                }));
+
+            return (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Profile Visualization</h2>
+                    <div className="h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart data={data}>
+                                <PolarGrid />
+                                <PolarAngleAxis dataKey="dimension" />
+                                <PolarRadiusAxis domain={[0, 100]} />
+                                <Radar
+                                    name="Your Profile"
+                                    dataKey="score"
+                                    stroke="#4F46E5"
+                                    fill="#4F46E5"
+                                    fillOpacity={0.6}
+                                />
+                                <Legend />
+                            </RadarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            );
+        };
+
+        const NeurodiversityProfile = () => {
             const [showContextualHelp, setShowContextualHelp] = useState({});
-            
-            const dimensions = [
-                {
-                    name: 'Pattern Recognition',
-                    description: 'Ability to identify complex patterns in information, behaviors, or systems',
-                    context: 'Pattern recognition abilities can vary greatly among individuals. There is no "right" score - this measures your unique way of processing patterns.',
-                    questions: [
-                        {
-                            text: "I quickly notice patterns in numbers, words, or visual information",
-                            help: "Think about how you naturally process information in your daily life, work, or hobbies.",
-                            anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
-                        },
-                        {
-                            text: "I can easily predict what will happen next in sequences or situations",
-                            help: "Consider both logical sequences (like number patterns) and social situations.",
-                            anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
-                        },
-                        {
-                            text: "I make connections between seemingly unrelated concepts or ideas",
-                            help: "Think about how you link different topics or notice similarities across different domains.",
-                            anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
-                        }
-                    ]
-                },
-                // ... other dimensions can be added back here ...
-            ];
-
-            const [responses, setResponses] = useState(
-                dimensions.reduce((acc, dim) => ({
+            const [responses, setResponses] = useState(() => {
+                const saved = storage.load('neuroprofile_responses');
+                if (saved) return saved;
+                return dimensions.reduce((acc, dim) => ({
                     ...acc,
                     [dim.name]: dim.questions.reduce((qAcc, _, idx) => ({ ...qAcc, [idx]: null }), {})
-                }), {})
-            );
+                }), {});
+            });
 
-            const [scores, setScores] = useState(
-                dimensions.reduce((acc, dim) => ({ ...acc, [dim.name]: null }), {})
-            );
+            const [scores, setScores] = useState(() => {
+                const saved = storage.load('neuroprofile_scores');
+                if (saved) return saved;
+                return dimensions.reduce((acc, dim) => ({ ...acc, [dim.name]: null }), {});
+            });
 
-            const calculateScore = (dimensionResponses) => {
+            const [currentSection, setCurrentSection] = useState(0);
+            const [showResults, setShowResults] = useState(false);
+
+            useEffect(() => {
+                storage.save('neuroprofile_responses', responses);
+                storage.save('neuroprofile_scores', scores);
+            }, [responses, scores]);
+
+            const calculateScore = useCallback((dimensionResponses) => {
                 const validResponses = Object.values(dimensionResponses).filter(v => v !== null);
                 if (validResponses.length === 0) return null;
                 return (validResponses.reduce((sum, val) => sum + val, 0) / validResponses.length) * 25;
-            };
+            }, []);
 
-            const handleResponseChange = (dimension, questionIndex, value) => {
+            const handleResponseChange = useCallback((dimension, questionIndex, value) => {
                 setResponses(prev => {
                     const newResponses = {
                         ...prev,
@@ -79,89 +231,179 @@
 
                     return newResponses;
                 });
-            };
+            }, [calculateScore]);
+
+            const isComplete = useMemo(() => {
+                return Object.values(scores).every(score => score !== null);
+            }, [scores]);
+
+            const exportData = useCallback(() => {
+                const data = {
+                    responses,
+                    scores,
+                    timestamp: new Date().toISOString()
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'neurodiversity-profile.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, [responses, scores]);
 
             return (
                 <div className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Neurodiversity Profile</h1>
+                    <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Neurodiversity Profile Assessment</h1>
                     
-                    <div className="space-y-8">
-                        {dimensions.map((dim) => (
-                            <div key={dim.name} className="bg-white rounded-lg shadow-lg p-6">
-                                <div className="mb-6">
-                                    <h2 className="text-2xl font-bold text-gray-800">{dim.name}</h2>
-                                    <p className="text-gray-600 mt-2">{dim.description}</p>
-                                    <p className="text-sm text-gray-500 mt-2 italic">{dim.context}</p>
-                                </div>
-
-                                <div className="space-y-6">
-                                    {dim.questions.map((question, idx) => (
-                                        <div key={idx} className="mb-6">
-                                            <div className="flex items-start mb-3">
-                                                <p className="text-gray-800 flex-grow">{question.text}</p>
-                                                <button
-                                                    className="ml-2 text-gray-400 hover:text-gray-600"
-                                                    onClick={() => setShowContextualHelp(prev => ({
-                                                        ...prev,
-                                                        [`${dim.name}-${idx}`]: !prev[`${dim.name}-${idx}`]
-                                                    }))}
-                                                    aria-label="Show help text"
-                                                >
-                                                    ?
-                                                </button>
-                                            </div>
-                                            
-                                            {showContextualHelp[`${dim.name}-${idx}`] && (
-                                                <div className="text-sm text-gray-600 mb-3 bg-blue-50 p-3 rounded-md">
-                                                    {question.help}
-                                                </div>
-                                            )}
-
-                                            <div className="grid grid-cols-5 gap-2">
-                                                {question.anchors.map((anchor, valueIdx) => (
-                                                    <button
-                                                        key={valueIdx}
-                                                        onClick={() => handleResponseChange(dim.name, idx, valueIdx)}
-                                                        className={`p-3 text-sm rounded-md transition-all duration-200 
-                                                            ${responses[dim.name][idx] === valueIdx 
-                                                                ? 'bg-indigo-600 text-white font-medium shadow-md transform scale-105' 
-                                                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
-                                                    >
-                                                        {anchor}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="mt-6 pt-4 border-t">
-                                    <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-gray-600">Current score:</span>
-                                        <span className="font-medium">
-                                            {scores[dim.name] === null ? 'Not started' : `${scores[dim.name].toFixed(1)}%`}
-                                        </span>
-                                    </div>
-                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        {scores[dim.name] !== null && (
-                                            <div 
-                                                className="h-full bg-indigo-600 transition-all duration-500"
-                                                style={{ width: `${scores[dim.name]}%` }}
-                                            />
-                                        )}
-                                    </div>
-                                </div>
+                    {showResults ? (
+                        <>
+                            <ResultsVisualization scores={scores} />
+                            <div className="flex justify-between mb-8">
+                                <button
+                                    onClick={() => setShowResults(false)}
+                                    className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors"
+                                >
+                                    Return to Assessment
+                                </button>
+                                <button
+                                    onClick={exportData}
+                                    className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                                >
+                                    Export Results
+                                </button>
                             </div>
-                        ))}
+                            <div className="space-y-8">
+                                {dimensions.map((dim) => (
+                                    <div key={dim.name} className="bg-white rounded-lg shadow-lg p-6">
+                                        <h3 className="text-xl font-bold text-gray-800 mb-2">{dim.name}</h3>
+                                        <p className="text-gray-600 mb-4">{dim.description}</p>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-600">Score:</span>
+                                            <span className="font-bold text-indigo-600">
+                                                {scores[dim.name]?.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="space-y-8">
+                            {dimensions.map((dim, dimIndex) => (
+                                <div 
+                                    key={dim.name} 
+                                    className={`bg-white rounded-lg shadow-lg p-6 transition-opacity duration-300 ${
+                                        dimIndex === currentSection ? 'opacity-100' : 'opacity-50'
+                                    }`}
+                                >
+                                    <div className="mb-6">
+                                        <h2 className="text-2xl font-bold text-gray-800">{dim.name}</h2>
+                                        <p className="text-gray-600 mt-2">{dim.description}</p>
+                                        <p className="text-sm text-gray-500 mt-2 italic">{dim.context}</p>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        {dim.questions.map((question, idx) => (
+                                            <div key={idx} className="mb-6">
+                                                <div className="flex items-start mb-3">
+                                                    <p className="text-gray-800 flex-grow">{question.text}</p>
+                                                    <button
+                                                        className="ml-2 text-gray-400 hover:text-gray-600"
+                                                        onClick={() => setShowContextualHelp(prev => ({
+                                                            ...prev,
+                                                            [`${dim.name}-${idx}`]: !prev[`${dim.name}-${idx}`]
+                                                        }))}
+                                                        aria-label="Show help text"
+                                                    >
+                                                        ?
+                                                    </button>
+                                                </div>
+                                                
+                                                {showContextualHelp[`${dim.name}-${idx}`] && (
+                                                    <div className="text-sm text-gray-600 mb-3 bg-blue-50 p-3 rounded-md">
+                                                        {question.help}
+                                                    </div>
+                                                )}
+
+                                                <div className="grid grid-cols-5 gap-2">
+                                                    {question.anchors.map((anchor, valueIdx) => (
+                                                        <button
+                                                            key={valueIdx}
+                                                            onClick={() => handleResponseChange(dim.name, idx, valueIdx)}
+                                                            className={`p-3 text-sm rounded-md transition-all duration-200 
+                                                                ${responses[dim.name][idx] === valueIdx 
+                                                                    ? 'bg-indigo-600 text-white font-medium shadow-md transform scale-105' 
+                                                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                                                        >
+                                                            {anchor}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="mt-6 pt-4 border-t">
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span className="text-gray-600">Section progress:</span>
+                                            <span className="font-medium">
+                                                {scores[dim.name] === null ? 'Not started' : `${scores[dim.name].toFixed(1)}%`}
+                                            </span>
+                                        </div>
+                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                            {scores[dim.name] !== null && (
+                                                <div 
+                                                    className="h-full bg-indigo-600 transition-all duration-500"
+                                                    style={{ width: `${scores[dim.name]}%` }}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4">
+                        <div className="max-w-4xl mx-auto flex justify-between items-center">
+                            <button
+                                onClick={() => setCurrentSection(prev => Math.max(0, prev - 1))}
+                                disabled={currentSection === 0}
+                                className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Previous
+                            </button>
+                            <div className="text-gray-600">
+                                Section {currentSection + 1} of {dimensions.length}
+                            </div>
+                            {currentSection === dimensions.length - 1 ? (
+                                <button
+                                    onClick={() => setShowResults(true)}
+                                    disabled={!isComplete}
+                                    className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    View Results
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setCurrentSection(prev => Math.min(dimensions.length - 1, prev + 1))}
+                                    className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+                                >
+                                    Next
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             );
         };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(
             <React.StrictMode>
-                <NeurodiversityRadar />
+                <NeurodiversityProfile />
             </React.StrictMode>
         );
     </script>
