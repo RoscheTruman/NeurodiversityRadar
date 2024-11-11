@@ -5,76 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neurodiversity Radar</title>
     
-    <!-- Load React and other dependencies -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <!-- Development versions for better error messages -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.10.3/Recharts.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Error handling -->
+    <script type="text/javascript">
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Error: ' + msg + '\nURL: ' + url + '\nLine: ' + lineNo + '\nColumn: ' + columnNo + '\nError object: ' + JSON.stringify(error));
+            document.body.innerHTML += '<div style="color: red; padding: 20px;">Error: ' + msg + '</div>';
+            return false;
+        };
+    </script>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // React component
+        const { useState } = React;
+        const { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } = Recharts;
+
+        // Simple test component first to verify React is working
+        const TestComponent = () => {
+            const [count, setCount] = useState(0);
+            
+            return (
+                <div className="p-4">
+                    <h1 className="text-2xl mb-4">Test Component</h1>
+                    <button 
+                        className="bg-blue-500 text-white px-4 py-2 rounded"
+                        onClick={() => setCount(c => c + 1)}
+                    >
+                        Count: {count}
+                    </button>
+                </div>
+            );
+        };
+
         const NeurodiversityRadar = () => {
             const [showInfo, setShowInfo] = useState(null);
             
+            // Simplified dimensions for testing
             const dimensions = [
                 {
                     name: 'Pattern Recognition',
-                    description: 'Ability to identify complex patterns in information, behaviors, or systems',
+                    description: 'Ability to identify complex patterns',
                     questions: [
                         {
-                            text: "I quickly notice patterns in numbers, words, or visual information",
-                            anchors: ["Rarely true", "Sometimes true", "Often true", "Very often true", "Almost always true"]
-                        },
-                        {
-                            text: "I can easily predict what will happen next in sequences or situations",
-                            anchors: ["Rarely true", "Sometimes true", "Often true", "Very often true", "Almost always true"]
-                        },
-                        {
-                            text: "I make connections between seemingly unrelated concepts or ideas",
-                            anchors: ["Rarely true", "Sometimes true", "Often true", "Very often true", "Almost always true"]
+                            text: "I quickly notice patterns",
+                            anchors: ["Rarely", "Sometimes", "Often", "Very often", "Always"]
                         }
                     ]
                 },
-                // ... rest of your dimensions array ...
+                {
+                    name: 'Sensory Processing',
+                    description: 'How stimuli are processed',
+                    questions: [
+                        {
+                            text: "I am sensitive to sounds",
+                            anchors: ["Never", "Rarely", "Sometimes", "Often", "Always"]
+                        }
+                    ]
+                }
             ];
 
-            const [scores, setScores] = React.useState(
+            const [scores, setScores] = useState(
                 dimensions.reduce((acc, dim) => ({ ...acc, [dim.name]: 50 }), {})
             );
-
-            const [responses, setResponses] = React.useState(
-                dimensions.reduce((acc, dim) => ({
-                    ...acc,
-                    [dim.name]: dim.questions.reduce((qAcc, _, idx) => ({ ...qAcc, [idx]: 2 }), {})
-                }), {})
-            );
-
-            const handleResponseChange = (dimension, questionIndex, value) => {
-                setResponses(prev => ({
-                    ...prev,
-                    [dimension]: {
-                        ...prev[dimension],
-                        [questionIndex]: value
-                    }
-                }));
-
-                const dimensionResponses = Object.values({
-                    ...responses[dimension],
-                    [questionIndex]: value
-                });
-                const averageScore = (dimensionResponses.reduce((sum, val) => sum + val, 0) / dimensionResponses.length) * 25;
-                
-                setScores(prev => ({
-                    ...prev,
-                    [dimension]: averageScore
-                }));
-            };
 
             const chartData = dimensions.map(dim => ({
                 subject: dim.name,
@@ -82,78 +84,35 @@
             }));
 
             return (
-                <div className="min-h-screen bg-gray-50 p-8">
+                <div className="min-h-screen bg-gray-100 p-8">
                     <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
-                        <h1 className="text-2xl font-bold mb-2">Neurodiversity Profile Assessment</h1>
-                        <p className="text-gray-600 mb-6">
-                            Rate each statement according to how well it describes your experiences. 
-                            Your responses will be reflected in the radar chart.
-                        </p>
+                        <h1 className="text-2xl font-bold mb-4">Neurodiversity Profile</h1>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-8">
+                            <div>
                                 {dimensions.map((dim) => (
-                                    <div key={dim.name} className="space-y-4">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-medium text-lg">{dim.name}</h3>
-                                            <button
-                                                className="text-gray-500 hover:text-gray-700"
-                                                onMouseEnter={() => setShowInfo(dim.name)}
-                                                onMouseLeave={() => setShowInfo(null)}
-                                            >
-                                                ℹ️
-                                            </button>
-                                        </div>
-                                        
-                                        {showInfo === dim.name && (
-                                            <div className="bg-blue-50 p-3 rounded-md text-sm">
-                                                {dim.description}
-                                            </div>
-                                        )}
-                                        
-                                        <div className="space-y-4">
-                                            {dim.questions.map((question, idx) => (
-                                                <div key={idx} className="space-y-2">
-                                                    <p className="text-sm">{question.text}</p>
-                                                    <div className="grid grid-cols-5 gap-2">
-                                                        {question.anchors.map((anchor, valueIdx) => (
-                                                            <button
-                                                                key={valueIdx}
-                                                                onClick={() => handleResponseChange(dim.name, idx, valueIdx)}
-                                                                className={`p-2 text-xs text-center rounded transition-colors
-                                                                    ${responses[dim.name][idx] === valueIdx 
-                                                                        ? 'bg-indigo-600 text-white' 
-                                                                        : 'bg-gray-100 hover:bg-gray-200'}`}
-                                                            >
-                                                                {anchor}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                    <div key={dim.name} className="mb-6">
+                                        <h2 className="text-xl font-bold">{dim.name}</h2>
+                                        <p className="text-gray-600 mb-2">{dim.description}</p>
                                     </div>
                                 ))}
                             </div>
                             
-                            <div className="h-96 sticky top-4">
-                                <Recharts.ResponsiveContainer width="100%" height="100%">
-                                    <Recharts.RadarChart data={chartData}>
-                                        <Recharts.PolarGrid />
-                                        <Recharts.PolarAngleAxis
-                                            dataKey="subject"
-                                            tick={{ fill: '#64748b', fontSize: 12 }}
-                                        />
-                                        <Recharts.PolarRadiusAxis angle={30} domain={[0, 100]} />
-                                        <Recharts.Radar
+                            <div className="h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RadarChart data={chartData}>
+                                        <PolarGrid />
+                                        <PolarAngleAxis dataKey="subject" />
+                                        <PolarRadiusAxis />
+                                        <Radar
                                             name="Score"
                                             dataKey="score"
-                                            stroke="#6366f1"
-                                            fill="#6366f1"
-                                            fillOpacity={0.3}
+                                            stroke="#8884d8"
+                                            fill="#8884d8"
+                                            fillOpacity={0.6}
                                         />
-                                    </Recharts.RadarChart>
-                                </Recharts.ResponsiveContainer>
+                                    </RadarChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
                     </div>
@@ -161,13 +120,18 @@
             );
         };
 
-        // Render the app
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(
-            <React.StrictMode>
-                <NeurodiversityRadar />
-            </React.StrictMode>
-        );
+        // Try to render the app with error handling
+        try {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(
+                <React.StrictMode>
+                    <NeurodiversityRadar />
+                </React.StrictMode>
+            );
+        } catch (error) {
+            console.error('Render error:', error);
+            document.body.innerHTML += '<div style="color: red; padding: 20px;">Render error: ' + error.message + '</div>';
+        }
     </script>
 </body>
 </html>
