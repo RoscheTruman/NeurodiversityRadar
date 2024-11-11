@@ -9,7 +9,6 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.10.3/Recharts.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -28,29 +27,11 @@
 
     <script type="text/babel">
         const { useState } = React;
-        const { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } = Recharts;
 
-        // Simple test component first to verify React is working
-        const TestComponent = () => {
-            const [count, setCount] = useState(0);
-            
-            return (
-                <div className="p-4">
-                    <h1 className="text-2xl mb-4">Test Component</h1>
-                    <button 
-                        className="bg-blue-500 text-white px-4 py-2 rounded"
-                        onClick={() => setCount(c => c + 1)}
-                    >
-                        Count: {count}
-                    </button>
-                </div>
-            );
-        };
-
+        // Simple version without Recharts first to verify React is working
         const NeurodiversityRadar = () => {
             const [showInfo, setShowInfo] = useState(null);
             
-            // Simplified dimensions for testing
             const dimensions = [
                 {
                     name: 'Pattern Recognition',
@@ -78,43 +59,83 @@
                 dimensions.reduce((acc, dim) => ({ ...acc, [dim.name]: 50 }), {})
             );
 
-            const chartData = dimensions.map(dim => ({
-                subject: dim.name,
-                score: scores[dim.name]
-            }));
+            const [responses, setResponses] = useState(
+                dimensions.reduce((acc, dim) => ({
+                    ...acc,
+                    [dim.name]: dim.questions.reduce((qAcc, _, idx) => ({ ...qAcc, [idx]: 2 }), {})
+                }), {})
+            );
+
+            const handleResponseChange = (dimension, questionIndex, value) => {
+                setResponses(prev => ({
+                    ...prev,
+                    [dimension]: {
+                        ...prev[dimension],
+                        [questionIndex]: value
+                    }
+                }));
+
+                const dimensionResponses = Object.values({
+                    ...responses[dimension],
+                    [questionIndex]: value
+                });
+                const averageScore = (dimensionResponses.reduce((sum, val) => sum + val, 0) / dimensionResponses.length) * 25;
+                
+                setScores(prev => ({
+                    ...prev,
+                    [dimension]: averageScore
+                }));
+            };
 
             return (
                 <div className="min-h-screen bg-gray-100 p-8">
                     <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
                         <h1 className="text-2xl font-bold mb-4">Neurodiversity Profile</h1>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div>
-                                {dimensions.map((dim) => (
-                                    <div key={dim.name} className="mb-6">
-                                        <h2 className="text-xl font-bold">{dim.name}</h2>
-                                        <p className="text-gray-600 mb-2">{dim.description}</p>
+                        {dimensions.map((dim) => (
+                            <div key={dim.name} className="mb-8">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <h2 className="text-xl font-bold">{dim.name}</h2>
+                                    <button
+                                        className="text-gray-500 hover:text-gray-700"
+                                        onMouseEnter={() => setShowInfo(dim.name)}
+                                        onMouseLeave={() => setShowInfo(null)}
+                                    >
+                                        ℹ️
+                                    </button>
+                                </div>
+
+                                {showInfo === dim.name && (
+                                    <div className="bg-blue-50 p-3 rounded-md text-sm mb-4">
+                                        {dim.description}
+                                    </div>
+                                )}
+
+                                {dim.questions.map((question, idx) => (
+                                    <div key={idx} className="mb-6">
+                                        <p className="text-gray-700 mb-2">{question.text}</p>
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {question.anchors.map((anchor, valueIdx) => (
+                                                <button
+                                                    key={valueIdx}
+                                                    onClick={() => handleResponseChange(dim.name, idx, valueIdx)}
+                                                    className={`p-2 text-sm text-center rounded transition-colors
+                                                        ${responses[dim.name][idx] === valueIdx 
+                                                            ? 'bg-indigo-600 text-white' 
+                                                            : 'bg-gray-100 hover:bg-gray-200'}`}
+                                                >
+                                                    {anchor}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
+
+                                <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                                    <p className="font-semibold">Current score: {scores[dim.name].toFixed(1)}%</p>
+                                </div>
                             </div>
-                            
-                            <div className="h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RadarChart data={chartData}>
-                                        <PolarGrid />
-                                        <PolarAngleAxis dataKey="subject" />
-                                        <PolarRadiusAxis />
-                                        <Radar
-                                            name="Score"
-                                            dataKey="score"
-                                            stroke="#8884d8"
-                                            fill="#8884d8"
-                                            fillOpacity={0.6}
-                                        />
-                                    </RadarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             );
